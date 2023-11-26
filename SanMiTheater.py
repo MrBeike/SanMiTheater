@@ -12,11 +12,12 @@ class SanMiTheater:
     三米影视（www.lyzhibang.com）桌面端
     功能：搜索、播放(本地、网络)
     """
+
     def __int__(self):
         self.s = requests.session()
         self.s.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                          "Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0",
+            "Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0",
             "Host": "www.lyzhibang.com",
         }
         # 网址参数
@@ -41,7 +42,7 @@ class SanMiTheater:
             "limit": 20,
             "q": keyword,
         }
-        search_result = self.s.get(self.search_url, params=search_param).json()['data']
+        search_result = self.s.get(self.search_url, params=search_param).json()["data"]
         return search_result
 
     @staticmethod
@@ -76,7 +77,7 @@ class SanMiTheater:
         chosen_vod = search_result[index - 1]
         vod_name = chosen_vod["vod_name"]
         vod_title = chosen_vod["vod_title"]
-        vod_name_detail = f'{vod_name}({vod_title})'
+        vod_name_detail = f"{vod_name}({vod_title})"
         return vod_name_detail
 
     def episode_chosen(self, playlist_dict: dict, index: int) -> str:
@@ -101,24 +102,28 @@ class SanMiTheater:
         :param vod_name:所选剧的详细名称
         :return:
         """
-        episode_template = '''
+        episode_template = """
         $index*file*$episode_url
-        $index*title*$episode_title'''
+        $index*title*$episode_title"""
         playlist = Template(episode_template)
 
-        dlp_template = '''DAUMPLAYLIST
+        dlp_template = """DAUMPLAYLIST
         topindex=0
-        saveplaypos=1$playlist'''
+        saveplaypos=1$playlist"""
         dlp = Template(dlp_template)
 
         episode_content = []
         for index, item in playlist_dict.items():
             episode_url = self.episode_chosen(playlist_dict, index)
-            episode_info = {'index': index, 'episode_url': episode_url, "episode_title": item['episode']}
+            episode_info = {
+                "index": index,
+                "episode_url": episode_url,
+                "episode_title": item["episode"],
+            }
             episode_content.append(playlist.substitute(episode_info))
         dlp_content = dlp.substitute({"playlist": "".join(episode_content)})
 
-        with open(f'{vod_name}.dpl', "w", encoding='utf-8') as f:
+        with open(f"{vod_name}.dpl", "w", encoding="utf-8") as f:
             f.write(dlp_content)
         return
 
@@ -130,5 +135,7 @@ class SanMiTheater:
         """
         # TODO 双击py文件时,不调用shell=True无法运行,调用后无法自动关闭Shell界面
         subprocess.run([self.potPlayer, path], shell=True)
+        # sp.terminate()
+        # sp.wait()
         # TODO 在线播放地址 需用浏览器打开
-        onlinePlay_url = f'{self.onlinePlayer}https://cdn6.yzzy-online.com/20221008/19041_7b14eca0/index.m3u8'
+        onlinePlay_url = f"{self.onlinePlayer}https://cdn6.yzzy-online.com/20221008/19041_7b14eca0/index.m3u8"
