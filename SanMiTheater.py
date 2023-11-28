@@ -1,8 +1,8 @@
-from urllib.parse import urljoin
+import os
 import re
-from bs4 import BeautifulSoup
 import requests
-import subprocess
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin
 from pathlib import Path
 from string import Template
 
@@ -10,22 +10,19 @@ from string import Template
 class SanMiTheater:
     """
     三米影视（www.lyzhibang.com）桌面端
-    功能：搜索、播放(本地、网络)
+    功能：搜索、生成M3U8播放列表
     """
 
-    def __int__(self):
+    def __init__(self):
         self.s = requests.session()
         self.s.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0",
+                          "Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0",
             "Host": "www.lyzhibang.com",
         }
         # 网址参数
         self.base_url = "https://www.lyzhibang.com/index.php"
         self.search_url = urljoin(self.base_url, "index.php")
-        # PotPlayer的路径
-        # TODO 应该设置为可配置（config文件？）
-        self.potPlayer = r"C:\Program Files\DAUM\PotPlayer\PotPlayerMini64.exe"
         self.onlinePlayer = "https://tools.liumingye.cn/m3u8/#"
         # 首次访问
         self.s.get(self.base_url)
@@ -89,10 +86,11 @@ class SanMiTheater:
         """
         chosen_episode = playlist_dict[index]
         episode_url = urljoin(self.base_url, chosen_episode["url"])
-        episode_soup = BeautifulSoup(self.s.get(episode_url).text)
+        episode_soup = BeautifulSoup(self.s.get(episode_url).text,features="html.parser")
         script = episode_soup.find("div", id="zanpiancms_player").find("script")
-        regexp = re.compile(r'\{"url":"(https?://(?:[-\w.]|/)+)')
-        episode_m3u8 = regexp.findall(script.text)[0]
+        # regexp = re.compile(r'\{"url":"(https?://(?:[-\w.]|/)+)')
+        regexp = re.compile('https:\/\/[a-zA-Z0-9\/\._-]+\.m3u8')
+        episode_m3u8 = regexp.findall(script.string)[0]
         return episode_m3u8
 
     def make_dlp(self, playlist_dict: dict, vod_name: str) -> None:
@@ -127,15 +125,56 @@ class SanMiTheater:
             f.write(dlp_content)
         return
 
+    def make_m3u8(self, playlist_dict: dict, vod_name: str) -> Path:
+        """
+        制作M3U8格式播放列表
+        :param playlist_dict:所选剧的播放列表
+        :param vod_name:所选剧的详细名称
+        :return:m3u8的路径
+        """
+        episode_template = """#EXTINF:-1,$episode_title\n$episode_url\n"""
+        playlist = Template(episode_template)
+
+        m3u8_template = """#EXTM3U\n$playlist"""
+        m3u8 = Template(m3u8_template)
+
+        episode_content = []
+        for index, item in playlist_dict.items():
+            episode_url = self.episode_chosen(playlist_dict, index)
+            episode_info = {
+                "episode_url": episode_url,
+                "episode_title": item["episode"],
+            }
+            episode_content.append(playlist.substitute(episode_info))
+        m3u8_content = m3u8.substitute({"playlist": "".join(episode_content)})
+        with open(f"{vod_name}.m3u8", "w", encoding="utf-8") as f:
+            f.write(m3u8_content)
+        path = f"{vod_name}.m3u8"
+        return path
+
     def play(self, path: Path) -> None:
         """
-        调用PotPlayer播放文件
+       调用默认程序打开播放列表
         :param path:视频文件的路径(单个文件：网络路径|多个文件：本地播放列表)
         :return:
         """
-        # TODO 双击py文件时,不调用shell=True无法运行,调用后无法自动关闭Shell界面
-        subprocess.run([self.potPlayer, path], shell=True)
-        # sp.terminate()
-        # sp.wait()
+        os.startfile(path)
+        return
+
+    def online_play(self,path:Path)->None:
         # TODO 在线播放地址 需用浏览器打开
         onlinePlay_url = f"{self.onlinePlayer}https://cdn6.yzzy-online.com/20221008/19041_7b14eca0/index.m3u8"
+
+    def run(self):
+        keyword = input("请输入关键词搜索： ")
+        search_result = self.search(keyword)
+        self.show_search(search_result)
+        vod_index = int(input("请输入剧集序号："))or 1
+        playlist_dict = self.vod_chosen(search_result,vod_index)
+        vod_name = self.vod_name(search_result,vod_index)
+        path = self.make_m3u8(playlist_dict,vod_name)
+        self.play(path)
+
+if __name__ == "__main__":
+    san = SanMiTheater()
+    san.run()
