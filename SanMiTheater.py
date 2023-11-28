@@ -17,7 +17,7 @@ class SanMiTheater:
         self.s = requests.session()
         self.s.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                          "Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0",
+            "Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0",
             "Host": "www.lyzhibang.com",
         }
         # 网址参数
@@ -60,7 +60,7 @@ class SanMiTheater:
         vod_url = chosen_vod["vod_url"]
         detail_url = urljoin(self.base_url, vod_url)
         # 获取播放列表
-        soup = BeautifulSoup(self.s.get(detail_url).text)
+        soup = BeautifulSoup(self.s.get(detail_url).text, features="lxml")
         playlist_soup = soup.find("ul", id="con_playlist_1")
         # 解决反向排序问题
         playlist_reverse = playlist_soup.contents[::-1]
@@ -86,10 +86,10 @@ class SanMiTheater:
         """
         chosen_episode = playlist_dict[index]
         episode_url = urljoin(self.base_url, chosen_episode["url"])
-        episode_soup = BeautifulSoup(self.s.get(episode_url).text,features="html.parser")
+        episode_soup = BeautifulSoup(self.s.get(episode_url).text, features="lxml")
         script = episode_soup.find("div", id="zanpiancms_player").find("script")
         # regexp = re.compile(r'\{"url":"(https?://(?:[-\w.]|/)+)')
-        regexp = re.compile('https:\/\/[a-zA-Z0-9\/\._-]+\.m3u8')
+        regexp = re.compile("https:\/\/[a-zA-Z0-9\/\._-]+\.m3u8")
         episode_m3u8 = regexp.findall(script.string)[0]
         return episode_m3u8
 
@@ -154,14 +154,14 @@ class SanMiTheater:
 
     def play(self, path: Path) -> None:
         """
-       调用默认程序打开播放列表
-        :param path:视频文件的路径(单个文件：网络路径|多个文件：本地播放列表)
-        :return:
+        调用默认程序打开播放列表
+         :param path:视频文件的路径(单个文件：网络路径|多个文件：本地播放列表)
+         :return:
         """
         os.startfile(path)
         return
 
-    def online_play(self,path:Path)->None:
+    def online_play(self, path: Path) -> None:
         # TODO 在线播放地址 需用浏览器打开
         onlinePlay_url = f"{self.onlinePlayer}https://cdn6.yzzy-online.com/20221008/19041_7b14eca0/index.m3u8"
 
@@ -169,11 +169,12 @@ class SanMiTheater:
         keyword = input("请输入关键词搜索： ")
         search_result = self.search(keyword)
         self.show_search(search_result)
-        vod_index = int(input("请输入剧集序号："))or 1
-        playlist_dict = self.vod_chosen(search_result,vod_index)
-        vod_name = self.vod_name(search_result,vod_index)
-        path = self.make_m3u8(playlist_dict,vod_name)
+        vod_index = int(input("请输入剧集序号：")) or 1
+        playlist_dict = self.vod_chosen(search_result, vod_index)
+        vod_name = self.vod_name(search_result, vod_index)
+        path = self.make_m3u8(playlist_dict, vod_name)
         self.play(path)
+
 
 if __name__ == "__main__":
     san = SanMiTheater()
